@@ -86,7 +86,7 @@ exports.getPost = async (req, res, next) => {
   }
 };
 
-exports.updatePost = (req, res, next) => {
+exports.updatePost = async (req, res, next) => {
   const postId = req.params.postId;
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
@@ -111,36 +111,34 @@ exports.updatePost = (req, res, next) => {
     error.statusCode = 422;
     throw error;
   }
+  try {
+    const post = await Post.findById(postId);
 
-  Post.findById(postId)
-    .then((post) => {
-      if (!post) {
-        const error = new Error("Coud not find post");
-        error.statusCode = 404;
-        throw error;
-      }
-      if (post.creator.toString() !== req.userId) {
-        const error = new Error("Not Authorized");
-        error.statusCode = 403;
-        throw error;
-      }
-      if (imageUrl !== post.imageUrl) {
-        clearImage(post.imageUrl);
-      }
-      post.title = title;
-      post.imageUrl = imageUrl;
-      post.content = content;
-      return post.save();
-    })
-    .then((result) => {
-      res.status(200).json({ message: "Post Updated!", post: result });
-    })
-    .catch((err) => {
-      if (!err.statusCode) {
-        err.statusCode = 500;
-      }
-      next(err);
-    });
+    if (!post) {
+      const error = new Error("Coud not find post");
+      error.statusCode = 404;
+      throw error;
+    }
+    if (post.creator.toString() !== req.userId) {
+      const error = new Error("Not Authorized");
+      error.statusCode = 403;
+      throw error;
+    }
+    if (imageUrl !== post.imageUrl) {
+      clearImage(post.imageUrl);
+    }
+    post.title = title;
+    post.imageUrl = imageUrl;
+    post.content = content;
+    const result = await post.save();
+
+    res.status(200).json({ message: "Post Updated!", post: result });
+  } catch (err) {
+    if (!err.statusCode) {
+      err.statusCode = 500;
+    }
+    next(err);
+  }
 };
 
 exports.deletePost = (req, res, next) => {
