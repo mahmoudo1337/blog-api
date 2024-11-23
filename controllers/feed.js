@@ -7,7 +7,6 @@ const User = require("../models/user");
 exports.getPosts = async (req, res, next) => {
   const currentPage = req.query.page || 1;
   const perPage = 2;
-  let totalItems;
   try {
     const totalItems = await Post.find().countDocuments();
     const posts = await Post.find()
@@ -27,7 +26,7 @@ exports.getPosts = async (req, res, next) => {
   }
 };
 
-exports.createPost = (req, res, next) => {
+exports.createPost = async (req, res, next) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
     const error = new Error("Validation failed, entered data is incorrect.");
@@ -42,7 +41,6 @@ exports.createPost = (req, res, next) => {
   const imageUrl = req.file.path;
   const title = req.body.title;
   const content = req.body.content;
-  let creator;
 
   const post = new Post({
     title: title,
@@ -50,31 +48,24 @@ exports.createPost = (req, res, next) => {
     imageUrl: imageUrl,
     creator: req.userId,
   });
-  console.log(req.userId);
-  post
-    .save()
-    .then((result) => {
-      return User.findById(req.userId);
-    })
-    .then((user) => {
-      console.log(user);
-      creator = user;
-      user.posts.push(post);
-      return user.save();
-    })
-    .then((result) => {
-      res.status(201).json({
-        message: "Post created successfully!",
-        post: post,
-        creator: { _id: creator._id, name: creator.name },
-      });
-    })
-    .catch((err) => {
-      if (!err.statusCode) {
-        err.statusCode = 500;
-      }
-      next(err);
+  try {
+    console.log(req.userId);
+    await post.save();
+    const user = await User.findById(req.userId);
+    console.log(user);
+    user.posts.push(post);
+    await user.save();
+    res.status(201).json({
+      message: "Post created successfully!",
+      post: post,
+      creator: { _id: user._id, name: user.name },
     });
+  } catch (err) {
+    if (!err.statusCode) {
+      err.statusCode = 500;
+    }
+    next(err);
+  }
 };
 
 exports.getPost = (req, res, next) => {
