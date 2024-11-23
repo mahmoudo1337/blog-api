@@ -141,39 +141,34 @@ exports.updatePost = async (req, res, next) => {
   }
 };
 
-exports.deletePost = (req, res, next) => {
+exports.deletePost = async (req, res, next) => {
   const postId = req.params.postId;
-  Post.findById(postId)
-    .then((post) => {
-      if (!post) {
-        const error = new Error("Coud not find post");
-        error.statusCode = 404;
-        throw error;
-      }
-      if (post.creator.toString() !== req.userId) {
-        const error = new Error("Not Authorized");
-        error.statusCode = 403;
-        throw error;
-      }
-      clearImage(post.imageUrl);
-      return Post.findByIdAndDelete(postId);
-    })
-    .then((result) => {
-      return User.findById(req.userId);
-    })
-    .then((user) => {
-      user.posts.pull(postId);
-      return user.save();
-    })
-    .then((result) => {
-      res.status(200).json({ message: "deleted post" });
-    })
-    .catch((err) => {
-      if (!err.statusCode) {
-        err.statusCode = 500;
-      }
-      next(err);
-    });
+  try {
+    const post = await Post.findById(postId);
+
+    if (!post) {
+      const error = new Error("Coud not find post");
+      error.statusCode = 404;
+      throw error;
+    }
+    if (post.creator.toString() !== req.userId) {
+      const error = new Error("Not Authorized");
+      error.statusCode = 403;
+      throw error;
+    }
+    clearImage(post.imageUrl);
+    const result = await Post.findByIdAndDelete(postId);
+    const user = await User.findById(req.userId);
+
+    user.posts.pull(postId);
+    const savedUser = await user.save();
+    res.status(200).json({ message: "deleted post" });
+  } catch (err) {
+    if (!err.statusCode) {
+      err.statusCode = 500;
+    }
+    next(err);
+  }
 };
 
 const clearImage = (filePath) => {
