@@ -64,15 +64,17 @@ app.use((error, req, res, next) => {
   res.status(status).json({ message: message, data: data });
 });
 
-
 mongoose
   .connect(
     "mongodb+srv://mahmoudo:2fjlF77sa8ecpOAb@cluster0.s1p2l.mongodb.net/messages?retryWrites=true&w=majority&appName=Cluster0"
   )
   .then((result) => {
-    app.listen(8080);
+    const server = app.listen(8080);
+    const io = require("./socket").init(server);
+    io.on("connection", (socket) => {
+      console.log("Client Connected");
+    });
   })
   .catch((err) => {
     console.log(err);
-    ``;
   });
